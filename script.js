@@ -1,313 +1,442 @@
-// Enhanced interactions for El Pelón's bold landing page
+// Professional interactions with cinematic animations for El Pelón
 
-document.addEventListener('DOMContentLoaded', function() {
-    initializeEffects();
-    trackSocialClicks();
-    addInteractivity();
-    preventImageDrag();
+// State management
+const state = {
+    analytics: {
+        visits: 0,
+        clicks: {},
+        sessions: []
+    }
+};
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    initCursor();
+    initAnalytics();
+    initLinkTracking();
+    initIntersectionObserver();
+    initAdvancedAnimations();
+    preventDefaults();
 });
 
-// Initialize visual effects
-function initializeEffects() {
-    createFloatingDots();
-    addMouseTracker();
-}
+/* ============================================
+   CUSTOM CURSOR
+   ============================================ */
+function initCursor() {
+    const cursor = document.querySelector('.cursor-follower');
+    if (!cursor) return;
 
-// Create floating dots effect
-function createFloatingDots() {
-    const container = document.querySelector('.geometric-bg');
-    const dotCount = 20;
-    
-    for (let i = 0; i < dotCount; i++) {
-        const dot = document.createElement('div');
-        dot.style.position = 'absolute';
-        dot.style.width = Math.random() * 6 + 3 + 'px';
-        dot.style.height = dot.style.width;
-        dot.style.background = i % 2 === 0 ? '#f79c1c' : '#10a8e0';
-        dot.style.borderRadius = '50%';
-        dot.style.opacity = Math.random() * 0.4 + 0.2;
-        dot.style.top = Math.random() * 100 + '%';
-        dot.style.left = Math.random() * 100 + '%';
-        dot.style.pointerEvents = 'none';
-        dot.style.filter = 'blur(1px)';
-        
-        const duration = Math.random() * 15 + 10 + 's';
-        const delay = Math.random() * 5 + 's';
-        
-        dot.style.animation = `floatDot ${duration} ${delay} infinite ease-in-out`;
-        
-        container.appendChild(dot);
-    }
-}
-
-// Add CSS for dot animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes floatDot {
-        0%, 100% {
-            transform: translate(0, 0);
-        }
-        25% {
-            transform: translate(50px, -50px);
-        }
-        50% {
-            transform: translate(-30px, -100px);
-        }
-        75% {
-            transform: translate(30px, -50px);
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Mouse tracker effect
-function addMouseTracker() {
     let mouseX = 0;
     let mouseY = 0;
     let cursorX = 0;
     let cursorY = 0;
-    
+    let isHovering = false;
+
+    // Track mouse position
     document.addEventListener('mousemove', (e) => {
         mouseX = e.clientX;
         mouseY = e.clientY;
     });
-    
+
+    // Smooth cursor follow
     function animateCursor() {
-        const diffX = mouseX - cursorX;
-        const diffY = mouseY - cursorY;
-        
-        cursorX += diffX * 0.1;
-        cursorY += diffY * 0.1;
-        
-        // Apply parallax to shapes
-        const shapes = document.querySelectorAll('.shape');
-        shapes.forEach((shape, index) => {
-            const speed = (index + 1) * 0.02;
-            const x = (cursorX - window.innerWidth / 2) * speed;
-            const y = (cursorY - window.innerHeight / 2) * speed;
-            shape.style.transform = `translate(${x}px, ${y}px)`;
-        });
-        
+        const distX = mouseX - cursorX;
+        const distY = mouseY - cursorY;
+
+        cursorX += distX * 0.2;
+        cursorY += distY * 0.2;
+
+        cursor.style.left = cursorX + 'px';
+        cursor.style.top = cursorY + 'px';
+
         requestAnimationFrame(animateCursor);
     }
-    
     animateCursor();
-}
 
-// Track social media clicks
-function trackSocialClicks() {
-    const socialBtns = document.querySelectorAll('.social-btn');
+    // Cursor hover effects
+    const interactiveElements = document.querySelectorAll('a, button, .logo-core');
     
-    socialBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const platform = this.getAttribute('data-platform');
-            const timestamp = new Date().toISOString();
-            
-            console.log(`🎯 Click en ${platform} - ${timestamp}`);
-            
-            // Store analytics
-            storeClick(platform);
-            
-            // Visual feedback
-            createClickExplosion(this, e);
+    interactiveElements.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+            cursor.style.transform = 'scale(2)';
+            cursor.style.borderColor = 'var(--blue)';
+            cursor.style.backgroundColor = 'rgba(16, 168, 224, 0.2)';
+        });
+
+        el.addEventListener('mouseleave', () => {
+            cursor.style.transform = 'scale(1)';
+            cursor.style.borderColor = 'var(--orange)';
+            cursor.style.backgroundColor = 'transparent';
         });
     });
 }
 
-function storeClick(platform) {
+/* ============================================
+   ANALYTICS & TRACKING
+   ============================================ */
+function initAnalytics() {
     try {
-        let analytics = JSON.parse(localStorage.getItem('elPelonAnalytics') || '{}');
-        analytics[platform] = (analytics[platform] || 0) + 1;
-        analytics.lastClick = new Date().toISOString();
-        analytics.totalClicks = (analytics.totalClicks || 0) + 1;
-        localStorage.setItem('elPelonAnalytics', JSON.stringify(analytics));
+        // Load existing analytics
+        const stored = localStorage.getItem('elPelonProAnalytics');
+        if (stored) {
+            state.analytics = JSON.parse(stored);
+        }
+
+        // Track visit
+        state.analytics.visits++;
+        state.analytics.sessions.push({
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            viewport: `${window.innerWidth}x${window.innerHeight}`
+        });
+
+        // Keep only last 50 sessions
+        if (state.analytics.sessions.length > 50) {
+            state.analytics.sessions = state.analytics.sessions.slice(-50);
+        }
+
+        saveAnalytics();
+        logWelcome();
     } catch (e) {
-        console.log('Analytics no disponibles');
+        console.log('Analytics initialization failed');
     }
 }
 
-// Create explosion effect on click
-function createClickExplosion(element, event) {
+function saveAnalytics() {
+    try {
+        localStorage.setItem('elPelonProAnalytics', JSON.stringify(state.analytics));
+    } catch (e) {
+        console.log('Could not save analytics');
+    }
+}
+
+function logWelcome() {
+    console.log(
+        '%c✨ EL PELÓN - PRO VERSION ✨',
+        'font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #f79c1c, #10a8e0); -webkit-background-clip: text; color: transparent; padding: 20px;'
+    );
+    console.log(
+        `%c📊 Visita #${state.analytics.visits}`,
+        'font-size: 14px; color: #10a8e0; font-weight: bold;'
+    );
+    console.log(
+        '%cEscribe verEstadisticas() para ver métricas completas',
+        'font-size: 12px; color: #f79c1c;'
+    );
+}
+
+/* ============================================
+   LINK TRACKING
+   ============================================ */
+function initLinkTracking() {
+    const links = document.querySelectorAll('.link-card');
+
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            const platform = this.dataset.platform;
+            trackClick(platform);
+            createRippleEffect(this, e);
+            triggerSuccessAnimation(this);
+        });
+    });
+}
+
+function trackClick(platform) {
+    if (!state.analytics.clicks[platform]) {
+        state.analytics.clicks[platform] = 0;
+    }
+    state.analytics.clicks[platform]++;
+    state.analytics.lastClick = {
+        platform,
+        timestamp: new Date().toISOString()
+    };
+    saveAnalytics();
+
+    console.log(
+        `%c🎯 ${platform.toUpperCase()}`,
+        'font-size: 14px; color: #f79c1c; font-weight: bold;',
+        `• Click #${state.analytics.clicks[platform]}`
+    );
+}
+
+/* ============================================
+   VISUAL EFFECTS
+   ============================================ */
+function createRippleEffect(element, event) {
+    const ripple = document.createElement('div');
+    const rect = element.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    Object.assign(ripple.style, {
+        position: 'absolute',
+        left: x + 'px',
+        top: y + 'px',
+        width: '0',
+        height: '0',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.6)',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        zIndex: '100'
+    });
+
+    const cardInner = element.querySelector('.card-inner');
+    cardInner.style.position = 'relative';
+    cardInner.appendChild(ripple);
+
+    ripple.animate([
+        { width: '0', height: '0', opacity: 1 },
+        { width: '300px', height: '300px', opacity: 0 }
+    ], {
+        duration: 800,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }).onfinish = () => ripple.remove();
+}
+
+function triggerSuccessAnimation(element) {
+    // Create particle burst
     const colors = ['#f79c1c', '#10a8e0'];
-    const particleCount = 12;
-    
+    const particleCount = 20;
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
     for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        
-        particle.style.position = 'fixed';
-        particle.style.width = '8px';
-        particle.style.height = '8px';
-        particle.style.background = color;
-        particle.style.borderRadius = '50%';
-        particle.style.left = event.clientX + 'px';
-        particle.style.top = event.clientY + 'px';
-        particle.style.pointerEvents = 'none';
-        particle.style.zIndex = '9999';
-        particle.style.boxShadow = `0 0 10px ${color}`;
-        
-        document.body.appendChild(particle);
-        
-        const angle = (Math.PI * 2 * i) / particleCount;
-        const velocity = 100 + Math.random() * 50;
-        const tx = Math.cos(angle) * velocity;
-        const ty = Math.sin(angle) * velocity;
-        
-        particle.animate([
-            {
-                transform: 'translate(0, 0) scale(1)',
-                opacity: 1
-            },
-            {
-                transform: `translate(${tx}px, ${ty}px) scale(0)`,
-                opacity: 0
-            }
-        ], {
-            duration: 800,
-            easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
-        }).onfinish = () => particle.remove();
+        createParticle(centerX, centerY, colors[i % 2]);
     }
 }
 
-// Add interactivity
-function addInteractivity() {
-    const socialBtns = document.querySelectorAll('.social-btn');
+function createParticle(x, y, color) {
+    const particle = document.createElement('div');
     
-    // Touch feedback
-    socialBtns.forEach(btn => {
-        btn.addEventListener('touchstart', function() {
-            this.style.transform = 'translateX(5px) scale(0.98)';
+    Object.assign(particle.style, {
+        position: 'fixed',
+        left: x + 'px',
+        top: y + 'px',
+        width: '6px',
+        height: '6px',
+        borderRadius: '50%',
+        background: color,
+        pointerEvents: 'none',
+        zIndex: '10000',
+        boxShadow: `0 0 10px ${color}`
+    });
+
+    document.body.appendChild(particle);
+
+    const angle = Math.random() * Math.PI * 2;
+    const velocity = 100 + Math.random() * 100;
+    const tx = Math.cos(angle) * velocity;
+    const ty = Math.sin(angle) * velocity;
+
+    particle.animate([
+        {
+            transform: 'translate(0, 0) scale(1)',
+            opacity: 1
+        },
+        {
+            transform: `translate(${tx}px, ${ty}px) scale(0)`,
+            opacity: 0
+        }
+    ], {
+        duration: 1000 + Math.random() * 500,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }).onfinish = () => particle.remove();
+}
+
+/* ============================================
+   INTERSECTION OBSERVER
+   ============================================ */
+function initIntersectionObserver() {
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
         });
-        
-        btn.addEventListener('touchend', function() {
-            this.style.transform = '';
+    }, observerOptions);
+
+    const elements = document.querySelectorAll('.link-card, .section-label');
+    elements.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(30px)';
+        el.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+        observer.observe(el);
+    });
+}
+
+/* ============================================
+   ADVANCED ANIMATIONS
+   ============================================ */
+function initAdvancedAnimations() {
+    // Logo sphere parallax
+    const logoSphere = document.querySelector('.logo-sphere');
+    if (logoSphere) {
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 20;
+            const y = (e.clientY / window.innerHeight - 0.5) * 20;
+            logoSphere.style.transform = `perspective(1000px) rotateY(${x}deg) rotateX(${-y}deg)`;
         });
-        
-        // Add visual feedback on hover
-        btn.addEventListener('mouseenter', function() {
-            const pulse = this.querySelector('.btn-pulse');
-            if (pulse) {
-                pulse.style.animation = 'none';
-                setTimeout(() => {
-                    pulse.style.animation = 'pulse 2s ease-in-out infinite';
-                }, 10);
+    }
+
+    // Logo core interaction
+    const logoCore = document.querySelector('.logo-core');
+    if (logoCore) {
+        logoCore.addEventListener('click', () => {
+            logoCore.style.animation = 'none';
+            setTimeout(() => {
+                logoCore.style.animation = 'coreGlow 4s ease-in-out infinite, sphereEntry 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            }, 10);
+
+            // Create explosion effect
+            const rect = logoCore.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            for (let i = 0; i < 30; i++) {
+                createParticle(centerX, centerY, i % 2 === 0 ? '#f79c1c' : '#10a8e0');
+            }
+        });
+    }
+
+    // Smooth scroll behavior
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             }
         });
     });
-    
-    // Logo interaction
-    const logo = document.querySelector('.logo');
-    const logoFrame = document.querySelector('.logo-frame');
-    
-    if (logo && logoFrame) {
-        logoFrame.addEventListener('click', function() {
-            this.style.animation = 'none';
-            setTimeout(() => {
-                this.style.animation = 'frameRotate 20s linear infinite, logoReveal 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
-            }, 10);
-        });
-    }
 }
 
-// Prevent image drag
-function preventImageDrag() {
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
+/* ============================================
+   UTILITY FUNCTIONS
+   ============================================ */
+function preventDefaults() {
+    // Prevent image dragging
+    document.querySelectorAll('img').forEach(img => {
         img.addEventListener('dragstart', (e) => e.preventDefault());
     });
-}
 
-// Keyboard navigation
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-        const focused = document.activeElement;
-        if (focused.classList.contains('social-btn')) {
-            e.preventDefault();
-            focused.click();
+    // Keyboard accessibility
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            const focused = document.activeElement;
+            if (focused.classList.contains('link-card')) {
+                e.preventDefault();
+                focused.click();
+            }
         }
-    }
-});
-
-// Track page visits
-function trackVisit() {
-    try {
-        let visits = parseInt(localStorage.getItem('elPelonVisits') || '0');
-        visits++;
-        localStorage.setItem('elPelonVisits', visits.toString());
-        localStorage.setItem('elPelonLastVisit', new Date().toISOString());
-        console.log(`📊 Total de visitas: ${visits}`);
-    } catch (e) {
-        console.log('Tracking de visitas no disponible');
-    }
+    });
 }
 
-trackVisit();
-
-// Export analytics function
+/* ============================================
+   PUBLIC API
+   ============================================ */
 window.verEstadisticas = function() {
-    try {
-        const analytics = JSON.parse(localStorage.getItem('elPelonAnalytics') || '{}');
-        const visits = localStorage.getItem('elPelonVisits');
-        const lastVisit = localStorage.getItem('elPelonLastVisit');
-        
-        console.log('%c📊 ESTADÍSTICAS DE EL PELÓN', 'font-size: 20px; font-weight: bold; color: #f79c1c;');
-        console.table({
-            'Total Visitas': visits || 0,
-            'Última Visita': lastVisit || 'N/A',
-            'Total Clicks': analytics.totalClicks || 0,
-            'Clicks Facebook': analytics.facebook || 0,
-            'Clicks Instagram': analytics.instagram || 0,
-            'Clicks TikTok': analytics.tiktok || 0,
-            'Clicks Twitter': analytics.twitter || 0,
-            'Último Click': analytics.lastClick || 'N/A'
-        });
-        
-        // Calculate engagement
-        const engagement = visits > 0 ? ((analytics.totalClicks || 0) / visits * 100).toFixed(1) : 0;
-        console.log(`%c💪 Tasa de engagement: ${engagement}%`, 'font-size: 14px; color: #10a8e0;');
-        
-    } catch (e) {
-        console.log('No hay datos disponibles');
+    console.clear();
+    console.log(
+        '%c📊 ESTADÍSTICAS COMPLETAS - EL PELÓN',
+        'font-size: 24px; font-weight: bold; color: #f79c1c; padding: 10px 0;'
+    );
+
+    console.log('\n%c🎯 MÉTRICAS DE ENGAGEMENT', 'font-size: 16px; color: #10a8e0; font-weight: bold;');
+    console.table({
+        'Total de Visitas': state.analytics.visits,
+        'Total de Clicks': Object.values(state.analytics.clicks).reduce((a, b) => a + b, 0),
+        'Facebook': state.analytics.clicks.facebook || 0,
+        'Instagram': state.analytics.clicks.instagram || 0,
+        'TikTok': state.analytics.clicks.tiktok || 0,
+        'Twitter': state.analytics.clicks.twitter || 0
+    });
+
+    if (state.analytics.lastClick) {
+        console.log(
+            '%c🕐 Último Click:',
+            'font-weight: bold;',
+            state.analytics.lastClick.platform.toUpperCase(),
+            '•',
+            new Date(state.analytics.lastClick.timestamp).toLocaleString('es-BO')
+        );
+    }
+
+    // Calculate engagement rate
+    const totalClicks = Object.values(state.analytics.clicks).reduce((a, b) => a + b, 0);
+    const engagementRate = state.analytics.visits > 0 
+        ? ((totalClicks / state.analytics.visits) * 100).toFixed(2)
+        : 0;
+
+    console.log(
+        `%c📈 Tasa de Engagement: ${engagementRate}%`,
+        'font-size: 14px; color: #f79c1c; font-weight: bold; padding-top: 10px;'
+    );
+
+    // Show recent sessions
+    if (state.analytics.sessions.length > 0) {
+        console.log('\n%c📅 SESIONES RECIENTES', 'font-size: 16px; color: #10a8e0; font-weight: bold;');
+        console.table(state.analytics.sessions.slice(-5).map((session, i) => ({
+            '#': state.analytics.sessions.length - 4 + i,
+            'Fecha': new Date(session.timestamp).toLocaleString('es-BO'),
+            'Viewport': session.viewport
+        })));
+    }
+
+    console.log(
+        '\n%c💪 ¡Únete al cambio!',
+        'font-size: 18px; color: #f79c1c; font-weight: bold;'
+    );
+};
+
+window.resetearEstadisticas = function() {
+    if (confirm('¿Estás seguro de que quieres resetear todas las estadísticas?')) {
+        localStorage.removeItem('elPelonProAnalytics');
+        state.analytics = { visits: 0, clicks: {}, sessions: [] };
+        console.log('%c✅ Estadísticas reseteadas', 'color: #10a8e0; font-weight: bold;');
     }
 };
 
-// Performance optimization
+/* ============================================
+   PERFORMANCE MONITORING
+   ============================================ */
 if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
-        // Prefetch social media domains
-        const domains = [
-            'https://www.facebook.com',
-            'https://www.instagram.com',
-            'https://www.tiktok.com',
-            'https://x.com'
-        ];
-        
-        domains.forEach(domain => {
+        // Prefetch external domains
+        ['facebook.com', 'instagram.com', 'tiktok.com', 'x.com'].forEach(domain => {
             const link = document.createElement('link');
             link.rel = 'dns-prefetch';
-            link.href = domain;
+            link.href = `https://${domain}`;
             document.head.appendChild(link);
         });
     });
 }
 
-// Visibility change tracking
-document.addEventListener('visibilitychange', function() {
+// Page visibility tracking
+document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-        console.log('👋 ¡Bienvenido de vuelta!');
+        console.log('%c👋 Bienvenido de vuelta', 'color: #10a8e0;');
     }
 });
 
-// Easter egg
-let clickCount = 0;
-document.querySelector('.logo')?.addEventListener('click', function() {
-    clickCount++;
-    if (clickCount === 5) {
-        console.log('%c🎉 ¡Descubriste el easter egg! El Pelón te saluda', 'font-size: 18px; color: #f79c1c; font-weight: bold;');
-        clickCount = 0;
+// Performance metrics
+window.addEventListener('load', () => {
+    if ('performance' in window) {
+        const perfData = performance.getEntriesByType('navigation')[0];
+        console.log(
+            '%c⚡ Tiempo de carga:',
+            'color: #10a8e0;',
+            `${Math.round(perfData.loadEventEnd - perfData.fetchStart)}ms`
+        );
     }
 });
-
-console.log('%c¡BIENVENIDO A LA CAMPAÑA DE EL PELÓN! 🚀', 'font-size: 24px; font-weight: bold; color: #f79c1c; text-shadow: 2px 2px #10a8e0;');
-console.log('%cPara ver estadísticas completas, escribe: verEstadisticas()', 'font-size: 14px; color: #10a8e0;');
-console.log('%c¡Únete al cambio! 💪', 'font-size: 16px; color: #f79c1c;');
