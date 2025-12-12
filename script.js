@@ -1,464 +1,604 @@
-// Professional Landing Page - El Pelón
-// Blue-themed corporate design with advanced interactions
+// ============================================
+// ANALYTICS & TRACKING SYSTEM
+// ============================================
 
-'use strict';
+class AnalyticsTracker {
+    constructor() {
+        this.storageKey = 'jctt_campaign_analytics';
+        this.sessionKey = 'jctt_session_id';
+        this.init();
+    }
 
-// Global state
-const ElPelon = {
-    analytics: {
-        visits: 0,
-        clicks: {},
-        engagement: [],
-        startTime: Date.now()
-    },
-    
     init() {
-        this.loadAnalytics();
-        this.setupEventListeners();
-        this.initAnimations();
-        this.trackSession();
-        this.preventDefaults();
-        this.logWelcome();
-    },
-
-    // Load analytics from storage
-    loadAnalytics() {
-        try {
-            const stored = localStorage.getItem('elPelonCorporate');
-            if (stored) {
-                this.analytics = { ...this.analytics, ...JSON.parse(stored) };
-            }
-            this.analytics.visits++;
-            this.analytics.startTime = Date.now();
-        } catch (e) {
-            console.log('Analytics load failed');
+        // Generate or retrieve session ID
+        if (!sessionStorage.getItem(this.sessionKey)) {
+            sessionStorage.setItem(this.sessionKey, this.generateSessionId());
         }
-    },
 
-    // Save analytics to storage
+        // Load existing analytics or create new
+        this.data = this.loadAnalytics();
+        
+        // Track page visit
+        this.trackVisit();
+        
+        // Display welcome message
+        this.displayWelcome();
+    }
+
+    generateSessionId() {
+        return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    loadAnalytics() {
+        const stored = localStorage.getItem(this.storageKey);
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error('Error loading analytics:', e);
+            }
+        }
+        
+        return {
+            totalVisits: 0,
+            firstVisit: new Date().toISOString(),
+            lastVisit: null,
+            platforms: {
+                facebook: 0,
+                instagram: 0,
+                tiktok: 0,
+                twitter: 0
+            },
+            sessions: [],
+            clicks: []
+        };
+    }
+
     saveAnalytics() {
         try {
-            localStorage.setItem('elPelonCorporate', JSON.stringify(this.analytics));
+            localStorage.setItem(this.storageKey, JSON.stringify(this.data));
         } catch (e) {
-            console.log('Analytics save failed');
+            console.error('Error saving analytics:', e);
         }
-    },
+    }
 
-    // Setup event listeners
-    setupEventListeners() {
-        const socialLinks = document.querySelectorAll('.social-link');
+    trackVisit() {
+        this.data.totalVisits++;
+        this.data.lastVisit = new Date().toISOString();
         
-        socialLinks.forEach(link => {
-            // Click tracking
-            link.addEventListener('click', (e) => {
-                this.trackClick(link, e);
-            });
-
-            // Hover effects
-            link.addEventListener('mouseenter', () => {
-                this.createHoverEffect(link);
-            });
-
-            // Touch support
-            link.addEventListener('touchstart', () => {
-                link.style.transform = 'translateY(-5px)';
-            });
-
-            link.addEventListener('touchend', () => {
-                link.style.transform = '';
-            });
-        });
-
-        // Logo interaction
-        const hexagon = document.querySelector('.hexagon-shape');
-        if (hexagon) {
-            hexagon.addEventListener('click', () => {
-                this.triggerLogoAnimation();
-            });
-        }
-    },
-
-    // Track clicks
-    trackClick(link, event) {
-        const platform = link.dataset.platform;
-        
-        // Update analytics
-        if (!this.analytics.clicks[platform]) {
-            this.analytics.clicks[platform] = 0;
-        }
-        this.analytics.clicks[platform]++;
-
-        // Track engagement
-        this.analytics.engagement.push({
-            platform,
+        const sessionId = sessionStorage.getItem(this.sessionKey);
+        this.data.sessions.push({
+            id: sessionId,
             timestamp: new Date().toISOString(),
-            timeOnPage: Math.round((Date.now() - this.analytics.startTime) / 1000)
+            userAgent: navigator.userAgent,
+            viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight
+            }
         });
-
-        // Keep last 100 engagements
-        if (this.analytics.engagement.length > 100) {
-            this.analytics.engagement = this.analytics.engagement.slice(-100);
-        }
-
+        
         this.saveAnalytics();
+    }
 
-        // Visual feedback
-        this.createClickEffect(link, event);
+    trackClick(platform) {
+        if (this.data.platforms.hasOwnProperty(platform)) {
+            this.data.platforms[platform]++;
+            
+            this.data.clicks.push({
+                platform: platform,
+                timestamp: new Date().toISOString(),
+                sessionId: sessionStorage.getItem(this.sessionKey)
+            });
+            
+            this.saveAnalytics();
+            
+            console.log(`%c✓ Click registrado: ${platform.toUpperCase()}`, 
+                'color: #10a8e0; font-weight: bold; font-size: 14px;');
+        }
+    }
+
+    getStats() {
+        const totalClicks = Object.values(this.data.platforms).reduce((a, b) => a + b, 0);
         
-        // Console log
-        console.log(
-            `%c✓ ${platform.toUpperCase()}`,
-            'color: #10a8e0; font-weight: bold; font-size: 14px;',
-            `| Click #${this.analytics.clicks[platform]}`
-        );
-    },
+        return {
+            totalVisits: this.data.totalVisits,
+            totalClicks: totalClicks,
+            platformBreakdown: this.data.platforms,
+            firstVisit: this.data.firstVisit,
+            lastVisit: this.data.lastVisit,
+            totalSessions: this.data.sessions.length,
+            recentClicks: this.data.clicks.slice(-10)
+        };
+    }
 
-    // Create click effect
-    createClickEffect(element, event) {
-        // Ripple effect
-        const ripple = document.createElement('div');
-        const rect = element.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height);
-        const x = event.clientX - rect.left - size / 2;
-        const y = event.clientY - rect.top - size / 2;
+    displayWelcome() {
+        const styles = {
+            header: 'color: #f79c1c; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);',
+            info: 'color: #10a8e0; font-size: 14px;',
+            command: 'background: #f79c1c; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;'
+        };
 
-        Object.assign(ripple.style, {
-            position: 'absolute',
-            width: size + 'px',
-            height: size + 'px',
-            top: y + 'px',
-            left: x + 'px',
-            background: 'radial-gradient(circle, rgba(16, 168, 224, 0.6) 0%, transparent 70%)',
-            borderRadius: '50%',
-            transform: 'scale(0)',
-            pointerEvents: 'none',
-            zIndex: '10'
-        });
+        console.log('%c🗳️ Julio César Torrez Tapia - El Pelón', styles.header);
+        console.log('%cCampaña Digital Oficial | Gobernador Santa Cruz', styles.info);
+        console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10a8e0;');
+        console.log('%c✓ Sistema de Analytics Activado', styles.info);
+        console.log('%cPara ver estadísticas detalladas, ejecuta: %cverEstadisticas()', 
+            styles.info, styles.command);
+        console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10a8e0;');
+    }
+}
 
-        const linkContent = element.querySelector('.link-content');
-        linkContent.style.position = 'relative';
-        linkContent.appendChild(ripple);
+// Global function to view statistics
+window.verEstadisticas = function() {
+    if (!window.tracker) {
+        console.error('Sistema de analytics no inicializado');
+        return;
+    }
 
-        // Animate ripple
-        ripple.animate([
-            { transform: 'scale(0)', opacity: 1 },
-            { transform: 'scale(2)', opacity: 0 }
-        ], {
-            duration: 600,
-            easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
-        }).onfinish = () => ripple.remove();
-
-        // Particle burst
-        this.createParticleBurst(event.clientX, event.clientY);
-
-        // Success pulse
-        this.pulseElement(element);
-    },
-
-    // Create hover effect
-    createHoverEffect(element) {
-        const icon = element.querySelector('.icon-circle');
-        if (icon) {
-            icon.animate([
-                { transform: 'scale(1) rotate(0deg)' },
-                { transform: 'scale(1.1) rotate(10deg)' },
-                { transform: 'scale(1) rotate(0deg)' }
-            ], {
-                duration: 400,
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-            });
-        }
-    },
-
-    // Create particle burst
-    createParticleBurst(x, y) {
-        const colors = ['#10a8e0', '#f79c1c'];
-        const particleCount = 16;
-
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            const color = colors[i % colors.length];
-            const size = Math.random() * 6 + 4;
-
-            Object.assign(particle.style, {
-                position: 'fixed',
-                left: x + 'px',
-                top: y + 'px',
-                width: size + 'px',
-                height: size + 'px',
-                background: color,
-                borderRadius: '50%',
-                pointerEvents: 'none',
-                zIndex: '10000',
-                boxShadow: `0 0 10px ${color}`
-            });
-
-            document.body.appendChild(particle);
-
-            const angle = (Math.PI * 2 * i) / particleCount;
-            const velocity = 80 + Math.random() * 60;
-            const tx = Math.cos(angle) * velocity;
-            const ty = Math.sin(angle) * velocity;
-
-            particle.animate([
-                {
-                    transform: 'translate(0, 0) scale(1)',
-                    opacity: 1
-                },
-                {
-                    transform: `translate(${tx}px, ${ty}px) scale(0)`,
-                    opacity: 0
-                }
-            ], {
-                duration: 800 + Math.random() * 400,
-                easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
-            }).onfinish = () => particle.remove();
-        }
-    },
-
-    // Pulse element
-    pulseElement(element) {
-        element.animate([
-            { transform: 'translateY(-8px) scale(1)' },
-            { transform: 'translateY(-12px) scale(1.02)' },
-            { transform: 'translateY(-8px) scale(1)' }
-        ], {
-            duration: 300,
-            easing: 'ease-out'
-        });
-    },
-
-    // Trigger logo animation
-    triggerLogoAnimation() {
-        const hexagonShape = document.querySelector('.hexagon-shape');
-        const hexagonBorder = document.querySelector('.hexagon-border');
+    const stats = window.tracker.getStats();
+    
+    console.clear();
+    console.log('%c📊 ESTADÍSTICAS DE CAMPAÑA', 
+        'color: #f79c1c; font-size: 20px; font-weight: bold; padding: 10px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10a8e0;');
+    
+    console.group('%c📈 Métricas Generales', 'color: #10a8e0; font-weight: bold;');
+    console.log(`Total de Visitas: ${stats.totalVisits}`);
+    console.log(`Total de Clicks: ${stats.totalClicks}`);
+    console.log(`Sesiones Registradas: ${stats.totalSessions}`);
+    console.log(`Primera Visita: ${new Date(stats.firstVisit).toLocaleString('es-BO')}`);
+    console.log(`Última Visita: ${new Date(stats.lastVisit).toLocaleString('es-BO')}`);
+    console.groupEnd();
+    
+    console.group('%c🌐 Clicks por Plataforma', 'color: #10a8e0; font-weight: bold;');
+    Object.entries(stats.platformBreakdown).forEach(([platform, clicks]) => {
+        const percentage = stats.totalClicks > 0 ? 
+            ((clicks / stats.totalClicks) * 100).toFixed(1) : 0;
+        const icon = {
+            facebook: '📘',
+            instagram: '📸',
+            tiktok: '🎵',
+            twitter: '🐦'
+        }[platform] || '📱';
         
-        if (hexagonShape) {
-            hexagonShape.animate([
-                { transform: 'translateY(0) rotate(0deg) scale(1)' },
-                { transform: 'translateY(-20px) rotate(360deg) scale(1.1)' },
-                { transform: 'translateY(0) rotate(720deg) scale(1)' }
-            ], {
-                duration: 1000,
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-            });
-        }
+        console.log(`${icon} ${platform.charAt(0).toUpperCase() + platform.slice(1)}: ${clicks} clicks (${percentage}%)`);
+    });
+    console.groupEnd();
+    
+    if (stats.recentClicks.length > 0) {
+        console.group('%c⏱️ Clicks Recientes', 'color: #10a8e0; font-weight: bold;');
+        console.table(stats.recentClicks.map(click => ({
+            Plataforma: click.platform,
+            Fecha: new Date(click.timestamp).toLocaleString('es-BO'),
+            Sesión: click.sessionId.slice(-8)
+        })));
+        console.groupEnd();
+    }
+    
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10a8e0;');
+    console.log('%c💡 Tip: Los datos se guardan localmente en tu navegador', 
+        'color: #666; font-style: italic;');
+};
 
-        if (hexagonBorder) {
-            hexagonBorder.style.animationPlayState = 'paused';
+// ============================================
+// PARTICLE EFFECTS SYSTEM
+// ============================================
+
+class ParticleSystem {
+    constructor() {
+        this.container = document.querySelector('.particle-container');
+        this.colors = ['#f79c1c', '#10a8e0', '#ffffff'];
+    }
+
+    createParticle(x, y) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        const color = this.colors[Math.floor(Math.random() * this.colors.length)];
+        const size = Math.random() * 8 + 4;
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = Math.random() * 100 + 50;
+        const vx = Math.cos(angle) * velocity;
+        const vy = Math.sin(angle) * velocity;
+        
+        particle.style.cssText = `
+            left: ${x}px;
+            top: ${y}px;
+            width: ${size}px;
+            height: ${size}px;
+            background: ${color};
+            box-shadow: 0 0 ${size * 2}px ${color};
+        `;
+        
+        this.container.appendChild(particle);
+        
+        this.animateParticle(particle, vx, vy);
+    }
+
+    animateParticle(particle, vx, vy) {
+        let opacity = 1;
+        let x = parseFloat(particle.style.left);
+        let y = parseFloat(particle.style.top);
+        const gravity = 200; // pixels per second squared
+        let startTime = null;
+
+        const animate = (currentTime) => {
+            if (!startTime) startTime = currentTime;
+            const elapsed = (currentTime - startTime) / 1000; // Convert to seconds
+
+            if (elapsed > 1) {
+                particle.remove();
+                return;
+            }
+
+            x += vx * 0.016; // Approximate frame time
+            y += vy * 0.016 + 0.5 * gravity * 0.016 * 0.016;
+            vy += gravity * 0.016;
+            opacity = 1 - elapsed;
+
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            particle.style.opacity = opacity;
+
+            requestAnimationFrame(animate);
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    burst(x, y, count = 20) {
+        for (let i = 0; i < count; i++) {
             setTimeout(() => {
-                hexagonBorder.style.animationPlayState = 'running';
-            }, 1000);
+                this.createParticle(x, y);
+            }, i * 20);
         }
+    }
+}
 
-        // Create burst at logo
-        const rect = hexagonShape.getBoundingClientRect();
+// ============================================
+// RIPPLE EFFECT SYSTEM
+// ============================================
+
+function createRipple(event, element) {
+    const ripple = element.querySelector('.ripple-effect');
+    
+    const rect = element.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.style.width = '0px';
+    ripple.style.height = '0px';
+    
+    ripple.classList.remove('active');
+    void ripple.offsetWidth; // Trigger reflow
+    ripple.classList.add('active');
+}
+
+// ============================================
+// LOGO INTERACTIONS
+// ============================================
+
+function initLogoInteractions() {
+    const logoContainer = document.querySelector('.logo-container');
+    let clickCount = 0;
+    let clickTimer = null;
+
+    logoContainer.addEventListener('click', () => {
+        clickCount++;
+        
+        if (clickTimer) clearTimeout(clickTimer);
+        
+        clickTimer = setTimeout(() => {
+            if (clickCount >= 5) {
+                activateEasterEgg();
+            }
+            clickCount = 0;
+        }, 2000);
+    });
+
+    // Keyboard interaction
+    logoContainer.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            logoContainer.click();
+        }
+    });
+}
+
+function activateEasterEgg() {
+    console.log('%c🎉 ¡EASTER EGG ACTIVADO!', 
+        'color: #f79c1c; font-size: 24px; font-weight: bold; animation: rainbow 2s linear infinite;');
+    console.log('%c¡Gracias por tu interés en nuestra campaña!', 
+        'color: #10a8e0; font-size: 16px;');
+    
+    const hexagon = document.querySelector('.hexagon');
+    hexagon.style.animation = 'hexagon-pulse 0.5s ease-in-out 3';
+    
+    if (window.particleSystem) {
+        const rect = hexagon.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        this.createParticleBurst(centerX, centerY);
+        window.particleSystem.burst(centerX, centerY, 30);
+    }
+}
 
-        console.log('%c🎉 ¡Logo activado!', 'color: #f79c1c; font-size: 16px; font-weight: bold;');
-    },
+// ============================================
+// SOCIAL MEDIA CARD INTERACTIONS
+// ============================================
 
-    // Initialize animations
-    initAnimations() {
-        // Intersection Observer for scroll animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
+function initSocialCards() {
+    const socialCards = document.querySelectorAll('.social-card');
 
-        const observer = new IntersectionObserver((entries) => {
+    socialCards.forEach(card => {
+        // Click handler
+        card.addEventListener('click', function(e) {
+            const platform = this.getAttribute('data-platform');
+            
+            // Track click
+            if (window.tracker) {
+                window.tracker.trackClick(platform);
+            }
+            
+            // Visual feedback
+            createRipple(e, this);
+            
+            // Particle effect
+            if (window.particleSystem) {
+                window.particleSystem.burst(e.clientX, e.clientY, 15);
+            }
+            
+            // Vibration feedback (if supported)
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        });
+
+        // Keyboard interaction
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                card.click();
+            }
+        });
+
+        // Mouse move effect for glow
+        card.addEventListener('mousemove', function(e) {
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const glow = this.querySelector('.card-glow');
+            glow.style.left = `${x - glow.offsetWidth / 2}px`;
+            glow.style.top = `${y - glow.offsetHeight / 2}px`;
+        });
+    });
+}
+
+// ============================================
+// PERFORMANCE MONITORING
+// ============================================
+
+function initPerformanceMonitoring() {
+    if (window.performance && window.performance.timing) {
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const perfData = window.performance.timing;
+                const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+                const connectTime = perfData.responseEnd - perfData.requestStart;
+                const renderTime = perfData.domComplete - perfData.domLoading;
+                
+                console.group('%c⚡ Performance Metrics', 'color: #10a8e0; font-weight: bold;');
+                console.log(`Tiempo de carga total: ${pageLoadTime}ms`);
+                console.log(`Tiempo de conexión: ${connectTime}ms`);
+                console.log(`Tiempo de renderizado: ${renderTime}ms`);
+                console.groupEnd();
+            }, 0);
+        });
+    }
+}
+
+// ============================================
+// SMOOTH SCROLL
+// ============================================
+
+function initSmoothScroll() {
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+}
+
+// ============================================
+// LAZY LOADING IMAGES (if any added later)
+// ============================================
+
+function initLazyLoading() {
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.add('loaded');
+                    observer.unobserve(img);
                 }
             });
-        }, observerOptions);
-
-        // Observe elements
-        document.querySelectorAll('.social-link').forEach(el => {
-            observer.observe(el);
         });
 
-        // Parallax effect on scroll
-        window.addEventListener('scroll', () => {
-            const scrolled = window.pageYOffset;
-            const waves = document.querySelectorAll('.wave');
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+}
+
+// ============================================
+// VISIBILITY CHANGE TRACKING
+// ============================================
+
+function initVisibilityTracking() {
+    let visibilityStartTime = Date.now();
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            const timeSpent = Math.floor((Date.now() - visibilityStartTime) / 1000);
+            console.log(`%cTiempo en página: ${timeSpent} segundos`, 
+                'color: #10a8e0; font-weight: bold;');
+        } else {
+            visibilityStartTime = Date.now();
+        }
+    });
+}
+
+// ============================================
+// CUSTOM CURSOR (Optional - Desktop Only)
+// ============================================
+
+function initCustomCursor() {
+    if (window.innerWidth > 1024) {
+        const cursor = document.createElement('div');
+        cursor.className = 'custom-cursor';
+        cursor.style.cssText = `
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f79c1c;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            opacity: 0;
+        `;
+        document.body.appendChild(cursor);
+
+        let mouseX = 0, mouseY = 0;
+        let cursorX = 0, cursorY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            cursor.style.opacity = '1';
+        });
+
+        document.addEventListener('mouseleave', () => {
+            cursor.style.opacity = '0';
+        });
+
+        function animateCursor() {
+            const dx = mouseX - cursorX;
+            const dy = mouseY - cursorY;
             
-            waves.forEach((wave, index) => {
-                const speed = (index + 1) * 0.5;
-                wave.style.transform = `translateX(${scrolled * speed * 0.05}px)`;
+            cursorX += dx * 0.15;
+            cursorY += dy * 0.15;
+            
+            cursor.style.left = cursorX + 'px';
+            cursor.style.top = cursorY + 'px';
+            
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        // Cursor interactions
+        document.querySelectorAll('a, button, [role="button"]').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                cursor.style.transform = 'scale(1.5)';
+                cursor.style.borderColor = '#10a8e0';
+            });
+            el.addEventListener('mouseleave', () => {
+                cursor.style.transform = 'scale(1)';
+                cursor.style.borderColor = '#f79c1c';
             });
         });
-
-        // Smooth scroll for internal links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
-    },
-
-    // Track session
-    trackSession() {
-        // Track time on page
-        window.addEventListener('beforeunload', () => {
-            const timeOnPage = Math.round((Date.now() - this.analytics.startTime) / 1000);
-            console.log(`⏱️ Tiempo en página: ${timeOnPage}s`);
-        });
-
-        // Track visibility changes
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                console.log('%c👋 Bienvenido de vuelta', 'color: #10a8e0;');
-            }
-        });
-    },
-
-    // Prevent defaults
-    preventDefaults() {
-        // Prevent image dragging
-        document.querySelectorAll('img').forEach(img => {
-            img.addEventListener('dragstart', (e) => e.preventDefault());
-        });
-
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                const focused = document.activeElement;
-                if (focused.classList.contains('social-link')) {
-                    e.preventDefault();
-                    focused.click();
-                }
-            }
-        });
-    },
-
-    // Welcome message
-    logWelcome() {
-        console.clear();
-        console.log(
-            '%c█▀▀ █░░   █▀█ █▀▀ █░░ █▀█ █▄░█',
-            'color: #10a8e0; font-size: 14px; font-weight: bold;'
-        );
-        console.log(
-            '%c██▄ █▄▄   █▀▀ ██▄ █▄▄ █▄█ █░▀█',
-            'color: #10a8e0; font-size: 14px; font-weight: bold;'
-        );
-        console.log(
-            '\n%c🎯 VERSIÓN PROFESIONAL - DISEÑO CORPORATIVO',
-            'color: #f79c1c; font-size: 16px; font-weight: bold;'
-        );
-        console.log(
-            `%c📊 Visita #${this.analytics.visits}`,
-            'color: #10a8e0; font-size: 14px;'
-        );
-        console.log(
-            '%cEscribe: verEstadisticas() para métricas completas',
-            'color: #6c757d; font-size: 12px;'
-        );
-        console.log('%c' + '─'.repeat(50), 'color: #10a8e0;');
     }
-};
+}
 
-// Public API
-window.verEstadisticas = function() {
-    console.clear();
-    console.log(
-        '%c📊 DASHBOARD DE ANALYTICS',
-        'background: linear-gradient(90deg, #10a8e0, #f79c1c); color: white; padding: 12px 24px; font-size: 20px; font-weight: bold; border-radius: 8px;'
-    );
+// ============================================
+// PARALLAX EFFECT (Subtle)
+// ============================================
 
-    const totalClicks = Object.values(ElPelon.analytics.clicks).reduce((a, b) => a + b, 0);
-    const avgTimePerVisit = ElPelon.analytics.engagement.length > 0
-        ? Math.round(ElPelon.analytics.engagement.reduce((sum, e) => sum + e.timeOnPage, 0) / ElPelon.analytics.engagement.length)
-        : 0;
-
-    console.log('\n%c📈 MÉTRICAS GENERALES', 'color: #10a8e0; font-size: 16px; font-weight: bold;');
-    console.table({
-        'Total Visitas': ElPelon.analytics.visits,
-        'Total Clicks': totalClicks,
-        'Tiempo Promedio': avgTimePerVisit + 's',
-        'Facebook': ElPelon.analytics.clicks.facebook || 0,
-        'Instagram': ElPelon.analytics.clicks.instagram || 0,
-        'TikTok': ElPelon.analytics.clicks.tiktok || 0,
-        'Twitter': ElPelon.analytics.clicks.twitter || 0
-    });
-
-    // Engagement rate
-    const engagementRate = ElPelon.analytics.visits > 0
-        ? ((totalClicks / ElPelon.analytics.visits) * 100).toFixed(2)
-        : 0;
-
-    console.log(
-        `%c💪 Tasa de Engagement: ${engagementRate}%`,
-        'color: #f79c1c; font-size: 16px; font-weight: bold;'
-    );
-
-    // Recent interactions
-    if (ElPelon.analytics.engagement.length > 0) {
-        console.log('\n%c🕐 INTERACCIONES RECIENTES', 'color: #10a8e0; font-size: 16px; font-weight: bold;');
-        console.table(
-            ElPelon.analytics.engagement.slice(-10).map((e, i) => ({
-                '#': ElPelon.analytics.engagement.length - 9 + i,
-                'Plataforma': e.platform.toUpperCase(),
-                'Tiempo en página': e.timeOnPage + 's',
-                'Fecha': new Date(e.timestamp).toLocaleString('es-BO')
-            }))
-        );
-    }
-
-    console.log('\n%c✨ ¡Únete al cambio!', 'color: #10a8e0; font-size: 18px; font-weight: bold;');
-};
-
-window.resetearDatos = function() {
-    if (confirm('¿Seguro que quieres resetear todas las estadísticas?')) {
-        localStorage.removeItem('elPelonCorporate');
-        ElPelon.analytics = {
-            visits: 0,
-            clicks: {},
-            engagement: [],
-            startTime: Date.now()
-        };
-        console.log('%c✅ Datos reseteados correctamente', 'color: #10a8e0; font-weight: bold;');
-        location.reload();
-    }
-};
-
-// Performance monitoring
-if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => {
-        // DNS prefetch
-        ['facebook.com', 'instagram.com', 'tiktok.com', 'x.com'].forEach(domain => {
-            const link = document.createElement('link');
-            link.rel = 'dns-prefetch';
-            link.href = `https://${domain}`;
-            document.head.appendChild(link);
+function initParallax() {
+    const shapes = document.querySelectorAll('.shape');
+    
+    window.addEventListener('scroll', () => {
+        const scrolled = window.pageYOffset;
+        
+        shapes.forEach((shape, index) => {
+            const speed = 0.5 + (index * 0.1);
+            const yPos = -(scrolled * speed);
+            shape.style.transform = `translateY(${yPos}px)`;
         });
     });
 }
 
-// Initialize on DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => ElPelon.init());
-} else {
-    ElPelon.init();
+// ============================================
+// NETWORK STATUS INDICATOR
+// ============================================
+
+function initNetworkStatus() {
+    window.addEventListener('online', () => {
+        console.log('%c✓ Conexión restaurada', 
+            'color: #4caf50; font-weight: bold;');
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('%c✗ Sin conexión a internet', 
+            'color: #f44336; font-weight: bold;');
+    });
 }
 
-// Performance metrics
-window.addEventListener('load', () => {
-    if ('performance' in window) {
-        const perfData = performance.getEntriesByType('navigation')[0];
-        const loadTime = Math.round(perfData.loadEventEnd - perfData.fetchStart);
-        console.log(`%c⚡ Página cargada en ${loadTime}ms`, 'color: #10a8e0;');
-    }
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize all systems
+    window.tracker = new AnalyticsTracker();
+    window.particleSystem = new ParticleSystem();
+    
+    initLogoInteractions();
+    initSocialCards();
+    initPerformanceMonitoring();
+    initSmoothScroll();
+    initLazyLoading();
+    initVisibilityTracking();
+    initCustomCursor();
+    initParallax();
+    initNetworkStatus();
+    
+    // Log initialization complete
+    console.log('%c✓ Sistema completamente inicializado', 
+        'color: #4caf50; font-weight: bold; font-size: 14px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10a8e0;');
 });
+
+// ============================================
+// SERVICE WORKER REGISTRATION (Optional)
+// ============================================
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // Uncomment to enable service worker
+        // navigator.serviceWorker.register('/sw.js')
+        //     .then(reg => console.log('Service Worker registrado', reg))
+        //     .catch(err => console.log('Error en Service Worker', err));
+    });
+}
+
+// ============================================
+// EXPORT FOR TESTING
+// ============================================
+
+window.campaignApp = {
+    tracker: window.tracker,
+    particleSystem: window.particleSystem,
+    verEstadisticas: window.verEstadisticas
+};
